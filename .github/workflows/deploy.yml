@@ -9,7 +9,6 @@ jobs:
   build:
     name: build
     runs-on: ubuntu-latest
-
     steps:
     - name: Checkout Repository
       uses: actions/checkout@v4
@@ -27,3 +26,35 @@ jobs:
 
     - name: Run Tests
       run: dotnet test --no-build
+
+  publish:
+    name: publish
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v4
+
+    - name: Setup .NET 9 SDK
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '9.0.x'
+
+    - name: Configure AWS Credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: eu-north-1
+
+    - name: Login to Amazon ECR
+      id: login-ecr
+      uses: aws-actions/amazon-ecr-login@v2
+
+    - name: Publish Docker Image to Amazon ECR
+      run: |
+        dotnet publish --os linux --arch x64 -t:PublishContainer -c Release
+        docker tag bookmanager:latest ${{ secrets.REPOSITORY }}:latest
+        docker tag bookmanager:1.0.0 ${{ secrets.REPOSITORY }}:1.0.0
+        docker push ${{ secrets.REPOSITORY }}:latest
+        docker push ${{ secrets.REPOSITORY }}:1.0.0
